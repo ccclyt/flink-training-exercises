@@ -94,6 +94,7 @@ public class TaxiRide implements Comparable<TaxiRide> {
 
 	public static TaxiRide fromString(String line) {
 
+
 		String[] tokens = line.split(",");
 		if (tokens.length != 11) {
 			throw new RuntimeException("Invalid record: " + line);
@@ -104,28 +105,28 @@ public class TaxiRide implements Comparable<TaxiRide> {
 		try {
 			ride.rideId = Long.parseLong(tokens[0]);
 
-			switch (tokens[1]) {
+			switch (tokens[3]) {
 				case "START":
 					ride.isStart = true;
-					ride.startTime = DateTime.parse(tokens[2], timeFormatter);
-					ride.endTime = DateTime.parse(tokens[3], timeFormatter);
+					ride.startTime = DateTime.parse(tokens[4], timeFormatter);
+					ride.endTime = DateTime.parse(tokens[5], timeFormatter);
 					break;
 				case "END":
 					ride.isStart = false;
-					ride.endTime = DateTime.parse(tokens[2], timeFormatter);
-					ride.startTime = DateTime.parse(tokens[3], timeFormatter);
+					ride.endTime = DateTime.parse(tokens[4], timeFormatter);
+					ride.startTime = DateTime.parse(tokens[5], timeFormatter);
 					break;
 				default:
 					throw new RuntimeException("Invalid record: " + line);
 			}
 
-			ride.startLon = tokens[4].length() > 0 ? Float.parseFloat(tokens[4]) : 0.0f;
-			ride.startLat = tokens[5].length() > 0 ? Float.parseFloat(tokens[5]) : 0.0f;
-			ride.endLon = tokens[6].length() > 0 ? Float.parseFloat(tokens[6]) : 0.0f;
-			ride.endLat = tokens[7].length() > 0 ? Float.parseFloat(tokens[7]) : 0.0f;
-			ride.passengerCnt = Short.parseShort(tokens[8]);
-			ride.taxiId = Long.parseLong(tokens[9]);
-			ride.driverId = Long.parseLong(tokens[10]);
+			ride.startLon = tokens[6].length() > 0 ? Float.parseFloat(tokens[6]) : 0.0f;
+			ride.startLat = tokens[7].length() > 0 ? Float.parseFloat(tokens[7]) : 0.0f;
+			ride.endLon = tokens[8].length() > 0 ? Float.parseFloat(tokens[8]) : 0.0f;
+			ride.endLat = tokens[9].length() > 0 ? Float.parseFloat(tokens[9]) : 0.0f;
+			ride.passengerCnt = Short.parseShort(tokens[10]);
+			ride.taxiId = Long.parseLong(tokens[1]);
+			ride.driverId = Long.parseLong(tokens[2]);
 
 		} catch (NumberFormatException nfe) {
 			throw new RuntimeException("Invalid record: " + line, nfe);

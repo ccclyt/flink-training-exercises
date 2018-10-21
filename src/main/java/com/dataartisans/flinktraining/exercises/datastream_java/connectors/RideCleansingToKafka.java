@@ -42,7 +42,7 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer011;
 public class RideCleansingToKafka {
 
 	private static final String LOCAL_KAFKA_BROKER = "localhost:9092";
-	public static final String CLEANSED_RIDES_TOPIC = "cleansedRides";
+	public static final String CLEANSED_RIDES_TOPIC = "cleansedRides01";
 
 	public static void main(String[] args) throws Exception {
 

@@ -20,6 +20,7 @@ import com.dataartisans.flinktraining.exercises.datastream_java.datatypes.TaxiRi
 import com.dataartisans.flinktraining.exercises.datastream_java.basics.RideCleansing;
 import com.dataartisans.flinktraining.exercises.datastream_java.sources.TaxiRideSource;
 import com.dataartisans.flinktraining.exercises.datastream_java.utils.GeoUtils;
+import com.dataartisans.flinktraining.exercises.datastream_java.utils.TaxiRideSchema;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -36,17 +37,15 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
-import org.apache.flink.streaming.connectors.elasticsearch2.ElasticsearchSink;
+import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer011;
 import org.apache.flink.util.Collector;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Java reference implementation for the "Popular Places" exercise of the Flink training
@@ -61,24 +60,70 @@ import java.util.Map;
  *
  */
 public class PopularPlacesToES {
+	private static final String LOCAL_ZOOKEEPER_HOST = "localhost:2181";
+	private static final String LOCAL_KAFKA_BROKER = "localhost:9092";
+	private static final String RIDE_SPEED_GROUP = "rideSpeedGroup";
+	private static final int MAX_EVENT_DELAY = 60; // rides are at most 60 sec out-of-order.
+//
+//	--手动创建索引
+//	curl -X PUT "localhost:9200/nyc-places" -H 'Content-Type: application/json' -d'
+//	{
+//		"mappings":{
+//		"popular-locations":{
+//			"properties":{
+//				"cnt":{
+//					"type":"integer"
+//				},
+//				"isStart":{
+//					"type":"text",
+//							"fields":{
+//						"keyword":{
+//							"type":"keyword",
+//									"ignore_above":256
+//						}
+//					}
+//				},
+//				"location":{
+//					"type":"geo_point"
+//				},
+//				"time":{
+//					"type":"long"
+//				}
+//			}
+//		}
+//	}
+//	}
+//'
+//
 
 	public static void main(String[] args) throws Exception {
 
-		// read parameters
-		ParameterTool params = ParameterTool.fromArgs(args);
-		String input = params.getRequired("input");
 
 		final int popThreshold = 20; // threshold for popular places
-		final int maxEventDelay = 60; // events are out of order by max 60 seconds
-		final int servingSpeedFactor = 600; // events of 10 minutes are served in 1 second
 
 		// set up streaming execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		env.getConfig().setAutoWatermarkInterval(1000);
 
-		// start the data generator
-		DataStream<TaxiRide> rides = env.addSource(
-				new TaxiRideSource(input, maxEventDelay, servingSpeedFactor));
+		// configure the Kafka consumer
+		Properties kafkaProps = new Properties();
+		kafkaProps.setProperty("zookeeper.connect", LOCAL_ZOOKEEPER_HOST);
+		kafkaProps.setProperty("bootstrap.servers", LOCAL_KAFKA_BROKER);
+		kafkaProps.setProperty("group.id", RIDE_SPEED_GROUP);
+		// always read the Kafka topic from the start
+		kafkaProps.setProperty("auto.offset.reset", "earliest");
+
+		// create a Kafka consumer
+		FlinkKafkaConsumer011<TaxiRide> consumer = new FlinkKafkaConsumer011<>(
+				"cleansedRides01",
+				new TaxiRideSchema(),
+				kafkaProps);
+		// assign a timestamp extractor to the consumer
+		consumer.assignTimestampsAndWatermarks(new PopularPlacesFromKafka.TaxiRideTSExtractor());
+
+		// create a TaxiRide data stream
+		DataStream<TaxiRide> rides = env.addSource(consumer);
 
 		// find popular places
 		DataStream<Tuple5<Float, Float, Long, Boolean, Integer>> popularPlaces = rides
@@ -105,7 +150,7 @@ public class PopularPlacesToES {
 		Map<String, String> config = new HashMap<>();
 		// This instructs the sink to emit after every element, otherwise they would be buffered
 		config.put("bulk.flush.max.actions", "10");
-		config.put("cluster.name", "elasticsearch");
+		config.put("cluster.name", "my-application");
 
 		List<InetSocketAddress> transports = new ArrayList<>();
 		transports.add(new InetSocketAddress(InetAddress.getByName("localhost"), 9300));

@@ -23,12 +23,15 @@ import com.dataartisans.flinktraining.exercises.datastream_java.sources.FinSourc
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 
 public class LowLatencyEventTimeJoin {
 	public static void main(String[] args) throws Exception {
 		// set up streaming execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+		TumblingEventTimeWindows.of(Time.hours(1));
 
 		// Simulated trade stream
 		DataStream<Trade> tradeStream = FinSources.tradeSource(env);

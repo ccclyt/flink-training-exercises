@@ -72,7 +72,7 @@ public class PopularPlacesFromKafka {
 
 		// create a Kafka consumer
 		FlinkKafkaConsumer011<TaxiRide> consumer = new FlinkKafkaConsumer011<>(
-				"cleansedRides",
+				"cleansedRides01",
 				new TaxiRideSchema(),
 				kafkaProps);
 		// assign a timestamp extractor to the consumer
