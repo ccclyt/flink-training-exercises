@@ -258,4 +258,7 @@ public class PopularPlacesToES {
 		}
 	}
 
+	//test
+	//select * from
+
 }
